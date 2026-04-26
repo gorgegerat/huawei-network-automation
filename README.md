@@ -28,12 +28,41 @@
 - 或 Python 3.9+ (本地开发)
 
 ### 2. 一键部署
+
+**Windows:**
 ```bash
 # 克隆项目
-cd d:/网络部署运维自动化
+git clone https://github.com/gorgegerat/huawei-network-automation.git
+cd huawei-network-automation
 
-# 启动所有服务
-docker-compose up -d
+# 复制环境变量模板
+copy .env.example .env
+
+# 编辑 .env 文件配置（可选）
+notepad .env
+
+# 运行部署脚本
+deploy.bat
+
+# 访问前端界面
+http://localhost:3000
+```
+
+**Linux/Mac:**
+```bash
+# 克隆项目
+git clone https://github.com/gorgegerat/huawei-network-automation.git
+cd huawei-network-automation
+
+# 复制环境变量模板
+cp .env.example .env
+
+# 编辑 .env 文件配置（可选）
+nano .env
+
+# 运行部署脚本
+chmod +x deploy.sh
+./deploy.sh
 
 # 访问前端界面
 http://localhost:3000
