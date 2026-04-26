@@ -11,13 +11,29 @@ database:
   url: "sqlite:///data/network.db"
   echo: false
 
-# 华为设备默认配置
-huawei:
-  default_username: "admin"
-  default_password: "Admin@123"
-  ssh_port: 22
-  connection_timeout: 30
-  command_timeout: 60
+# 设备厂商配置
+vendors:
+  huawei:
+    default_username: "admin"
+    default_password: "Admin@123"
+    ssh_port: 22
+    connection_timeout: 30
+    command_timeout: 60
+    device_type: "huawei"
+  cisco:
+    default_username: "cisco"
+    default_password: "cisco"
+    ssh_port: 22
+    connection_timeout: 30
+    command_timeout: 60
+    device_type: "cisco_ios"
+  h3c:
+    default_username: "admin"
+    default_password: "admin"
+    ssh_port: 22
+    connection_timeout: 30
+    command_timeout: 60
+    device_type: "hp_comware"
 
 # 监控配置
 monitoring:

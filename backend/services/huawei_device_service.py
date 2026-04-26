@@ -1,14 +1,16 @@
 import asyncio
 from netmiko import ConnectHandler
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 import re
 from database import Device, DeviceConfig
+from services.base_device_service import BaseDeviceService
 
-class HuaweiDeviceService:
+class HuaweiDeviceService(BaseDeviceService):
     """华为设备交互服务"""
     
     def __init__(self):
-        self.connections = {}
+        super().__init__()
+        self.vendor = "huawei"
     
     async def connect(self, device: Device) -> Dict[str, Any]:
         """连接到华为设备"""
@@ -36,11 +38,17 @@ class HuaweiDeviceService:
         except Exception as e:
             raise Exception(f"连接失败: {str(e)}")
     
-    async def disconnect(self, device_id: int):
+    async def disconnect(self, device_id: int) -> bool:
         """断开设备连接"""
         if device_id in self.connections:
             self.connections[device_id].disconnect()
             del self.connections[device_id]
+            return True
+        return False
+    
+    async def get_device_info(self, device: Device) -> Dict[str, Any]:
+        """获取设备信息"""
+        return await self.discover_device(device)
     
     async def discover_device(self, device: Device) -> Dict[str, Any]:
         """自动发现设备信息"""
@@ -247,3 +255,55 @@ class HuaweiDeviceService:
             health["status"] = "error"
             health["issues"].append(f"健康检查失败: {str(e)}")
             return health
+    
+    async def execute_command(self, device: Device, command: str) -> str:
+        """执行命令"""
+        if device.id not in self.connections:
+            await self.connect(device)
+        
+        connection = self.connections[device.id]
+        return connection.send_command(command)
+    
+    async def get_config(self, device: Device) -> str:
+        """获取设备配置"""
+        if device.id not in self.connections:
+            await self.connect(device)
+        
+        connection = self.connections[device.id]
+        return connection.send_command('display current-configuration')
+    
+    async def save_config(self, device: Device) -> bool:
+        """保存设备配置"""
+        if device.id not in self.connections:
+            await self.connect(device)
+        
+        connection = self.connections[device.id]
+        try:
+            connection.send_command('save')
+            connection.send_command('y')
+            return True
+        except Exception:
+            return False
+    
+    def get_supported_commands(self) -> List[str]:
+        """获取支持的命令列表"""
+        return [
+            'display version',
+            'display interface',
+            'display current-configuration',
+            'display cpu-usage',
+            'display memory-usage',
+            'display ip routing-table',
+            'system-view',
+            'save'
+        ]
+    
+    def parse_device_type(self, device_info: str) -> str:
+        """解析设备类型"""
+        if 'switch' in device_info.lower() or 's' in device_info.lower():
+            return 'switch'
+        elif 'router' in device_info.lower() or 'ar' in device_info.lower():
+            return 'router'
+        elif 'firewall' in device_info.lower() or 'usg' in device_info.lower():
+            return 'firewall'
+        return 'unknown'

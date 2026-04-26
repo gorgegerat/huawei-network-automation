@@ -1,14 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from passlib.context import CryptContext
 from jose import JWTError, jwt
 from database import get_db, User
 import yaml
 from pathlib import Path
+from pydantic import BaseModel
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from services.audit_service import AuditService
+from utils.validators import Validators
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 # 加载配置
 config_path = Path("/app/config/config.yaml")
@@ -21,9 +27,16 @@ with open(config_path, 'r', encoding='utf-8') as f:
 SECRET_KEY = config.get("security", {}).get("jwt_secret", "your-secret-key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = config.get("security", {}).get("jwt_expire_hours", 24) * 60
+MAX_LOGIN_ATTEMPTS = 5  # 最大登录失败次数
+LOCK_DURATION_MINUTES = 30  # 账户锁定时长（分钟）
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+# Pydantic模型
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
 
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
@@ -34,9 +47,9 @@ def get_password_hash(password):
 def create_access_token(data: dict, expires_delta: timedelta = None):
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
@@ -60,18 +73,56 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     return user
 
 @router.post("/login")
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+@limiter.limit("5/minute")  # 每分钟最多5次登录尝试
+async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == form_data.username).first()
+    
+    # 获取客户端信息
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "unknown")
+    
+    # 检查账户是否被锁定
+    if user and user.locked_until and user.locked_until > datetime.now(timezone.utc):
+        AuditService.log_login(db, user, client_ip, user_agent, "failed")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"账户已被锁定，请{int((user.locked_until - datetime.now(timezone.utc)).total_seconds() / 60)}分钟后重试"
+        )
+    
     if not user or not verify_password(form_data.password, user.hashed_password):
+        # 登录失败，增加失败次数
+        if user:
+            user.failed_login_attempts += 1
+            if user.failed_login_attempts >= MAX_LOGIN_ATTEMPTS:
+                user.locked_until = datetime.now(timezone.utc) + timedelta(minutes=LOCK_DURATION_MINUTES)
+                db.commit()
+                AuditService.log_login(db, user, client_ip, user_agent, "failed")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=f"登录失败次数过多，账户已被锁定{LOCK_DURATION_MINUTES}分钟"
+                )
+            db.commit()
+            AuditService.log_login(db, user, client_ip, user_agent, "failed")
+        
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="用户名或密码错误",
             headers={"WWW-Authenticate": "Bearer"},
         )
+    
+    # 登录成功，重置失败次数
+    user.failed_login_attempts = 0
+    user.locked_until = None
+    db.commit()
+    
+    # 记录登录审计日志
+    AuditService.log_login(db, user, client_ip, user_agent, "success")
+    
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
+    
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -79,12 +130,18 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
             "id": user.id,
             "username": user.username,
             "email": user.email,
-            "is_admin": user.is_admin
+            "is_admin": user.is_admin,
+            "must_change_password": user.must_change_password
         }
     }
 
 @router.post("/register")
 async def register(username: str, email: str, password: str, db: Session = Depends(get_db)):
+    # 输入验证
+    Validators.validate_username(username)
+    Validators.validate_email(email)
+    Validators.validate_password(password)
+    
     # 检查用户是否已存在
     existing_user = db.query(User).filter(User.username == username).first()
     if existing_user:
@@ -113,5 +170,36 @@ async def get_me(current_user: User = Depends(get_current_user)):
         "id": current_user.id,
         "username": current_user.username,
         "email": current_user.email,
-        "is_admin": current_user.is_admin
+        "is_admin": current_user.is_admin,
+        "must_change_password": current_user.must_change_password
     }
+
+@router.post("/change-password")
+async def change_password(
+    request: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # 验证旧密码
+    if not verify_password(request.old_password, current_user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="旧密码错误"
+        )
+    
+    # 验证新密码强度
+    if len(request.new_password) < 8:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="新密码长度至少8位"
+        )
+    
+    # 更新密码
+    current_user.hashed_password = get_password_hash(request.new_password)
+    current_user.must_change_password = False
+    current_user.last_password_change = datetime.now(timezone.utc)
+    current_user.failed_login_attempts = 0
+    current_user.locked_until = None
+    db.commit()
+    
+    return {"message": "密码修改成功"}

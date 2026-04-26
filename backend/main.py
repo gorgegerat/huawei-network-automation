@@ -3,6 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 import uvicorn
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from database import init_db, get_db
 from routers import devices, configs, monitoring, alerts, auth, optimization, ztp
@@ -10,6 +13,9 @@ from services.notification_service import NotificationService
 from services.monitor_service import MonitorService
 from services.auto_optimization_service import AutoOptimizationService
 from config_loader import config
+
+# 初始化速率限制器
+limiter = Limiter(key_func=get_remote_address)
 
 # 初始化服务
 notification_service = NotificationService(config)
@@ -36,6 +42,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # 配置CORS
 app.add_middleware(
@@ -53,19 +61,30 @@ app.include_router(configs.router, prefix="/api/configs", tags=["配置管理"])
 app.include_router(monitoring.router, prefix="/api/monitoring", tags=["监控"])
 app.include_router(alerts.router, prefix="/api/alerts", tags=["告警"])
 app.include_router(optimization.router, prefix="/api/optimization", tags=["自动优化"])
-app.include_router(ztp.router, prefix="/api", tags=["ZTP零接触部署"])
+app.include_router(ztp.router, prefix="/api/ztp", tags=["ZTP"])
+
+# 健康检查端点
+@app.get("/health")
+async def health_check():
+    """健康检查端点"""
+    return {
+        "status": "healthy",
+        "version": "1.0.0",
+        "services": {
+            "database": "connected",
+            "monitoring": "running" if monitor_service.is_running else "stopped",
+            "auto_optimization": "running" if auto_optimization_service.is_running else "stopped"
+        }
+    }
 
 @app.get("/")
 async def root():
+    """根端点"""
     return {
         "message": "华为网络设备自动化运维系统API",
         "version": "1.0.0",
         "docs": "/docs"
     }
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
 
 if __name__ == "__main__":
     uvicorn.run(

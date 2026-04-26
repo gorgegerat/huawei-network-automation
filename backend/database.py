@@ -102,7 +102,26 @@ class User(Base):
     hashed_password = Column(String(200), nullable=False)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
+    must_change_password = Column(Boolean, default=False)  # 强制修改密码标志
+    last_password_change = Column(DateTime)  # 最后修改密码时间
+    failed_login_attempts = Column(Integer, default=0)  # 失败登录次数
+    locked_until = Column(DateTime)  # 账户锁定时间
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    username = Column(String(50), nullable=True)
+    action = Column(String(100), nullable=False)  # login, logout, device_add, device_delete, config_change, etc.
+    resource_type = Column(String(50))  # device, config, user, etc.
+    resource_id = Column(Integer)
+    ip_address = Column(String(50))
+    user_agent = Column(String(200))
+    details = Column(Text)  # JSON格式的详细信息
+    status = Column(String(20), default="success")  # success, failed
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
 
 # 初始化数据库
 async def init_db():
