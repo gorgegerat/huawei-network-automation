@@ -1,6 +1,5 @@
 import asyncio
 from netmiko import ConnectHandler
-from netmiko.huawei import HuaweiHuawei
 from typing import Dict, Any, Optional
 import re
 from database import Device, DeviceConfig
