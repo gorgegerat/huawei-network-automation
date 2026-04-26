@@ -7,13 +7,17 @@ from sqlalchemy.orm import Session
 from database import Device, DeviceMetric, Alert, get_db
 from services.huawei_device_service import HuaweiDeviceService
 from services.notification_service import NotificationService
+from pathlib import Path
 
 # 配置日志
+log_dir = Path(__file__).parent.parent.parent / "logs"
+log_dir.mkdir(parents=True, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('/app/logs/monitoring.log'),
+        logging.FileHandler(log_dir / 'monitoring.log'),
         logging.StreamHandler()
     ]
 )
