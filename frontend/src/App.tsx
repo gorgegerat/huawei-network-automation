@@ -35,24 +35,24 @@ function App() {
     setUser(null)
   }
 
-  if (!isAuthenticated) {
-    return <Login onLogin={handleLogin} />
-  }
-
   return (
     <BrowserRouter>
-      <Layout user={user} onLogout={handleLogout}>
-        <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/devices" element={<Devices />} />
-          <Route path="/configs" element={<Configs />} />
-          <Route path="/monitoring" element={<Monitoring />} />
-          <Route path="/alerts" element={<Alerts />} />
-          <Route path="/optimization" element={<Optimization />} />
-          <Route path="/ztp" element={<ZTP />} />
-        </Routes>
-      </Layout>
+      {!isAuthenticated ? (
+        <Login onLogin={handleLogin} />
+      ) : (
+        <Layout user={user} onLogout={handleLogout}>
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/devices" element={<Devices />} />
+            <Route path="/configs" element={<Configs />} />
+            <Route path="/monitoring" element={<Monitoring />} />
+            <Route path="/alerts" element={<Alerts />} />
+            <Route path="/optimization" element={<Optimization />} />
+            <Route path="/ztp" element={<ZTP />} />
+          </Routes>
+        </Layout>
+      )}
     </BrowserRouter>
   )
 }
