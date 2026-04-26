@@ -1,0 +1,119 @@
+# 华为网络设备自动化运维系统配置文件
+
+# 服务器配置
+server:
+  host: "0.0.0.0"
+  port: 8000
+  debug: false
+
+# 数据库配置
+database:
+  url: "sqlite:///data/network.db"
+  echo: false
+
+# 华为设备默认配置
+huawei:
+  default_username: "admin"
+  default_password: "Admin@123"
+  ssh_port: 22
+  connection_timeout: 30
+  command_timeout: 60
+
+# 监控配置
+monitoring:
+  check_interval: 60  # 秒
+  cpu_threshold: 80  # CPU使用率阈值(%)
+  memory_threshold: 85  # 内存使用率阈值(%)
+  bandwidth_threshold: 90  # 带宽使用率阈值(%)
+  latency_threshold: 100  # 延迟阈值(ms)
+  packet_loss_threshold: 1  # 丢包率阈值(%)
+
+# 自动优化配置
+auto_optimization:
+  enabled: true
+  check_interval: 300  # 5分钟
+  enable_route_optimization: true
+  enable_bandwidth_management: true
+  enable_load_balancing: true
+
+# 通知配置
+notifications:
+  # 企业微信
+  wechat:
+    enabled: true
+    corp_id: "your-corp-id"
+    agent_id: "your-agent-id"
+    secret: "your-secret"
+  
+  # 阿里云短信
+  sms:
+    enabled: true
+    access_key_id: "your-access-key-id"
+    access_key_secret: "your-access-key-secret"
+    sign_name: "网络运维"
+    template_code: "SMS_123456789"
+  
+  # 邮件
+  email:
+    enabled: true
+    smtp_server: "smtp.example.com"
+    smtp_port: 587
+    smtp_username: "noreply@example.com"
+    smtp_password: "your-password"
+    from_address: "noreply@example.com"
+    to_addresses:
+      - "admin@example.com"
+      - "ops@example.com"
+
+# 日志配置
+logging:
+  level: "INFO"
+  file: "logs/network-auto.log"
+  max_size: 100  # MB
+  backup_count: 10
+
+# 安全配置
+security:
+  jwt_secret: "your-jwt-secret-change-this"
+  jwt_expire_hours: 24
+  api_rate_limit: 100  # 每分钟请求数
+
+# ZTP零接触部署配置
+ztp:
+  enabled: true
+  # DHCP配置
+  dhcp:
+    enabled: true
+    server_ip: "192.168.1.10"
+    lease_start: "192.168.1.100"
+    lease_end: "192.168.1.200"
+    subnet_mask: "255.255.255.0"
+    gateway: "192.168.1.1"
+    dns_server: "8.8.8.8"
+    lease_time: 86400  # 24小时
+
+  # TFTP配置
+  tftp:
+    enabled: true
+    port: 69
+    root_dir: "/tftpboot"
+    server_ip: "192.168.1.10"
+
+  # HTTP配置
+  http:
+    enabled: true
+    port: 8080
+    server_url: "http://192.168.1.10:8080"
+
+  # 设备发现配置
+  discovery:
+    enabled: true
+    interface: null  # 自动选择
+    scan_interval: 60  # 秒
+    max_age_hours: 24  # 设备记录保留时间
+
+  # 配置模板配置
+  templates:
+    dir: "/ztp/templates"
+    default_switch_template: "default_switch"
+    default_router_template: "default_router"

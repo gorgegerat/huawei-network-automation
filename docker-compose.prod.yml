@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # 后端API服务
+  backend:
+    build: ./backend
+    container_name: network-auto-backend-prod
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - ./data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - network-auto
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 前端界面
+  frontend:
+    build: ./frontend
+    container_name: network-auto-frontend-prod
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - network-auto
+
+  # 设备代理服务
+  agent:
+    build: ./agent
+    container_name: network-auto-agent-prod
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+    depends_on:
+      - backend
+    env_file:
+      - .env
+    restart: unless-stopped
+    networks:
+      - network-auto
+    privileged: true
+
+networks:
+  network-auto:
+    driver: bridge
+
+volumes:
+  data:
+  logs:

@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # 后端API服务
+  backend:
+    build: ./backend
+    container_name: network-auto-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config
+      - ./data:/app/data
+    environment:
+      - DATABASE_URL=sqlite:///data/network.db
+      - SECRET_KEY=your-secret-key-change-this
+    restart: unless-stopped
+    networks:
+      - network-auto
+
+  # 前端界面
+  frontend:
+    build: ./frontend
+    container_name: network-auto-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - network-auto
+
+  # 设备代理服务
+  agent:
+    build: ./agent
+    container_name: network-auto-agent
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - network-auto
+    privileged: true  # 需要网络访问权限
+
+  # ZTP零接触部署服务
+  ztp:
+    build: ./ztp
+    container_name: network-auto-ztp
+    ports:
+      - "69:69/udp"   # TFTP
+      - "8080:8080"   # HTTP
+    volumes:
+      - ./config:/app/config
+      - ./tftpboot:/tftpboot
+      - ./ztp-templates:/ztp/templates
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - network-auto
+    privileged: true  # 需要网络访问权限用于设备发现
+
+networks:
+  network-auto:
+    driver: bridge
+
+volumes:
+  data:
+  logs:
+  tftpboot:
+  ztp-templates:
