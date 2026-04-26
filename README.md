@@ -40,6 +40,47 @@ http://localhost:3000
 ```
 
 ### 3. 配置说明
+
+系统支持两种配置方式，推荐使用环境变量配置：
+
+#### 方式一：环境变量配置（推荐）
+
+1. 复制环境变量模板：
+```bash
+cp .env.example .env
+```
+
+2. 编辑 `.env` 文件，根据实际情况修改配置：
+```env
+# 服务器配置
+SERVER_HOST=0.0.0.0
+SERVER_PORT=8000
+
+# 数据库配置
+DATABASE_URL=sqlite:///data/network.db
+
+# 安全配置
+JWT_SECRET=your-jwt-secret-change-this-in-production
+
+# 华为设备配置
+HUAWEI_DEFAULT_USERNAME=admin
+HUAWEI_DEFAULT_PASSWORD=Admin@123
+
+# 通知配置
+WECHAT_CORP_ID=your-corp-id
+WECHAT_AGENT_ID=your-agent-id
+WECHAT_SECRET=your-secret
+
+# ZTP配置
+ZTP_DHCP_SERVER_IP=192.168.1.10
+ZTP_TFTP_SERVER_IP=192.168.1.10
+ZTP_HTTP_SERVER_URL=http://192.168.1.10:8080
+```
+
+**配置优先级**：环境变量 > config.yaml > 默认值
+
+#### 方式二：配置文件配置
+
 编辑 `config/config.yaml` 配置：
 - 数据库连接
 - 华为设备SSH凭据
@@ -55,7 +96,13 @@ http://localhost:3000
 ### 4. 需要手动配置的部分
 以下配置文件需要根据实际环境修改（标有⚠️）：
 
-**⚠️ config/config.yaml**
+**⚠️ .env 文件**（推荐）
+- 复制 `.env.example` 为 `.env`
+- 修改通知服务API密钥
+- 修改JWT密钥（生产环境）
+- 修改ZTP服务器IP地址
+
+**⚠️ config/config.yaml**（备用）
 ```yaml
 ztp:
   dhcp:
@@ -71,10 +118,6 @@ ztp:
     enabled: true
     scan_interval: 300
 ```
-
-**⚠️ .env 文件**（从.env.example复制）
-- 配置通知服务API密钥
-- 配置JWT密钥
 
 ## 详细教程
 

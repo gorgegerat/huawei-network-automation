@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { devicesAPI, alertsAPI, monitoringAPI } from '../api'
-import { 
-  Server, 
-  AlertTriangle, 
-  Activity, 
+import {
+  Server,
+  AlertTriangle,
+  Activity,
   TrendingUp,
   CheckCircle,
-  XCircle
+  XCircle,
+  StopCircle,
+  Download
 } from 'lucide-react'
 
 const Dashboard = () => {
@@ -18,6 +20,8 @@ const Dashboard = () => {
     criticalAlerts: 0,
   })
   const [recentAlerts, setRecentAlerts] = useState<any[]>([])
+  const [monitoringStatus, setMonitoringStatus] = useState<any>(null)
+  const [exporting, setExporting] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -26,10 +30,11 @@ const Dashboard = () => {
 
   const loadDashboardData = async () => {
     try {
-      const [devicesRes, alertsRes, alertStats] = await Promise.all([
+      const [devicesRes, alertsRes, alertStats, monitorStatus] = await Promise.all([
         devicesAPI.getAll(),
         alertsAPI.getAll({ limit: 5 }),
         alertsAPI.getStats(),
+        monitoringAPI.getStatus(),
       ])
 
       const devices = devicesRes.data
@@ -44,10 +49,40 @@ const Dashboard = () => {
       })
 
       setRecentAlerts(alertsRes.data)
+      setMonitoringStatus(monitorStatus.data)
     } catch (error) {
       console.error('加载数据失败:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleForceStopMonitoring = async () => {
+    if (!confirm('确定要强制停止所有监控任务吗？')) return
+    try {
+      await monitoringAPI.forceStop()
+      alert('监控任务已强制停止')
+      loadDashboardData()
+    } catch (error) {
+      alert('强制停止失败')
+    }
+  }
+
+  const handleExportMonitoringResults = async (format: string = 'excel') => {
+    setExporting(true)
+    try {
+      const response = await monitoringAPI.exportResults({ format, hours: 24 })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `monitoring_results.${format === 'excel' ? 'xlsx' : 'csv'}`)
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+    } catch (error) {
+      alert('导出失败')
+    } finally {
+      setExporting(false)
     }
   }
 
@@ -161,7 +196,7 @@ const Dashboard = () => {
       {/* 快捷操作 */}
       <div className="card">
         <h2 className="text-xl font-bold text-gray-800 mb-4">快捷操作</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <button className="p-4 bg-primary-50 hover:bg-primary-100 rounded-lg transition-colors text-left">
             <Activity className="text-primary-600 mb-2" size={24} />
             <p className="font-medium text-gray-800">刷新监控数据</p>
@@ -176,6 +211,27 @@ const Dashboard = () => {
             <Server className="text-blue-600 mb-2" size={24} />
             <p className="font-medium text-gray-800">扫描新设备</p>
             <p className="text-sm text-gray-600">发现并自动部署</p>
+          </button>
+          <button
+            onClick={handleForceStopMonitoring}
+            className="p-4 bg-red-50 hover:bg-red-100 rounded-lg transition-colors text-left"
+          >
+            <StopCircle className="text-red-600 mb-2" size={24} />
+            <p className="font-medium text-gray-800">强制停止监控</p>
+            <p className="text-sm text-gray-600">
+              {monitoringStatus?.running ? '监控运行中' : '监控已停止'}
+            </p>
+          </button>
+          <button
+            onClick={() => handleExportMonitoringResults('excel')}
+            disabled={exporting}
+            className="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg transition-colors text-left disabled:opacity-50"
+          >
+            <Download className="text-purple-600 mb-2" size={24} />
+            <p className="font-medium text-gray-800">导出监控结果</p>
+            <p className="text-sm text-gray-600">
+              {exporting ? '导出中...' : '下载Excel报表'}
+            </p>
           </button>
         </div>
       </div>

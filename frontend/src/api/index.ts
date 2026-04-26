@@ -19,6 +19,17 @@ export const devicesAPI = {
   connect: (id: number) => apiClient.post(`/api/devices/${id}/connect`),
   disconnect: (id: number) => apiClient.post(`/api/devices/${id}/disconnect`),
   discover: (id: number) => apiClient.post(`/api/devices/${id}/discover`),
+  getGroups: () => apiClient.get('/api/devices/groups/list'),
+  getByGroup: (groupName: string) => apiClient.get(`/api/devices/group/${groupName}`),
+  updateGroup: (id: number, group: string) => apiClient.put(`/api/devices/${id}/group`, null, { params: { group } }),
+  import: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return apiClient.post('/api/devices/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+  export: (format: string = 'excel') => apiClient.get(`/api/devices/export?format=${format}`, { responseType: 'blob' }),
 }
 
 export const configsAPI = {
@@ -39,6 +50,9 @@ export const monitoringAPI = {
     apiClient.get(`/api/monitoring/device/${deviceId}/summary`),
   refreshMetrics: (deviceId: number) =>
     apiClient.post(`/api/monitoring/device/${deviceId}/refresh`),
+  forceStop: () => apiClient.post('/api/monitoring/force-stop'),
+  getStatus: () => apiClient.get('/api/monitoring/status'),
+  exportResults: (params?: any) => apiClient.get('/api/monitoring/export', { params, responseType: 'blob' }),
 }
 
 export const alertsAPI = {

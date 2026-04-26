@@ -1,18 +1,11 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Float, Boolean, ForeignKey
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Float, Text, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship, Session
-from datetime import datetime
-import yaml
-from pathlib import Path
+from sqlalchemy.orm import sessionmaker, relationship
+from datetime import datetime, timezone
+from contextlib import contextmanager
+from config_loader import config
 
-# 加载配置
-config_path = Path("/app/config/config.yaml")
-if not config_path.exists():
-    config_path = Path("../config/config.yaml")
-
-with open(config_path, 'r', encoding='utf-8') as f:
-    config = yaml.safe_load(f)
-
+# 从配置加载器获取数据库配置
 DATABASE_URL = config.get("database", {}).get("url", "sqlite:///data/network.db")
 
 # 创建数据库引擎
@@ -24,7 +17,7 @@ Base = declarative_base()
 # 数据库模型
 class Device(Base):
     __tablename__ = "devices"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(100), nullable=False)
     ip_address = Column(String(50), unique=True, nullable=False, index=True)
@@ -36,9 +29,10 @@ class Device(Base):
     ssh_port = Column(Integer, default=22)
     status = Column(String(20), default="offline")  # online, offline, error
     last_seen = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
+    group = Column(String(50), default="未分组")  # 设备分组
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
     # 关系
     configs = relationship("DeviceConfig", back_populates="device", cascade="all, delete-orphan")
     metrics = relationship("DeviceMetric", back_populates="device", cascade="all, delete-orphan")
@@ -53,7 +47,7 @@ class DeviceConfig(Base):
     config_content = Column(Text, nullable=False)
     version = Column(String(50))
     is_active = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     
     # 关系
     device = relationship("Device", back_populates="configs")
@@ -66,7 +60,7 @@ class DeviceMetric(Base):
     metric_type = Column(String(50), nullable=False)  # cpu, memory, bandwidth, latency, packet_loss
     metric_value = Column(Float, nullable=False)
     unit = Column(String(20))
-    timestamp = Column(DateTime, default=datetime.utcnow, index=True)
+    timestamp = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     
     # 关系
     device = relationship("Device", back_populates="metrics")
@@ -82,7 +76,7 @@ class Alert(Base):
     message = Column(Text, nullable=False)
     is_resolved = Column(Boolean, default=False)
     resolved_at = Column(DateTime)
-    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     
     # 关系
     device = relationship("Device", back_populates="alerts")
@@ -97,7 +91,7 @@ class OptimizationLog(Base):
     new_config = Column(Text)
     reason = Column(Text)
     result = Column(String(20))  # success, failed
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 class User(Base):
     __tablename__ = "users"
@@ -108,7 +102,7 @@ class User(Base):
     hashed_password = Column(String(200), nullable=False)
     is_active = Column(Boolean, default=True)
     is_admin = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
 # 初始化数据库
 async def init_db():

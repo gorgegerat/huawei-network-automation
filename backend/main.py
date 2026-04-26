@@ -3,23 +3,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 import uvicorn
-import yaml
-import os
-from pathlib import Path
 
 from database import init_db, get_db
 from routers import devices, configs, monitoring, alerts, auth, optimization, ztp
 from services.notification_service import NotificationService
 from services.monitor_service import MonitorService
 from services.auto_optimization_service import AutoOptimizationService
-
-# 加载配置
-config_path = Path("/app/config/config.yaml")
-if not config_path.exists():
-    config_path = Path("../config/config.yaml")
-
-with open(config_path, 'r', encoding='utf-8') as f:
-    config = yaml.safe_load(f)
+from config_loader import config
 
 # 初始化服务
 notification_service = NotificationService(config)
