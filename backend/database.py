@@ -139,11 +139,11 @@ async def init_db():
     db = SessionLocal()
     try:
         from passlib.context import CryptContext
-        pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+        pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
         
         admin = db.query(User).filter(User.username == "admin").first()
-        # 直接使用预计算的bcrypt哈希值（密码: admin123）
-        hashed_password = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NUyBuChOqRE2"
+        # 使用pbkdf2_sha256生成密码哈希（密码: admin123）
+        hashed_password = pwd_context.hash("admin123")
         
         if not admin:
             admin = User(

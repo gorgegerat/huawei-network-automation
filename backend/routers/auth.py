@@ -35,7 +35,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = config.get("security", {}).get("jwt_expire_hours",
 MAX_LOGIN_ATTEMPTS = 5  # 最大登录失败次数
 LOCK_DURATION_MINUTES = 30  # 账户锁定时长（分钟）
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
 
 # Pydantic模型
