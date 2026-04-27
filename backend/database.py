@@ -135,10 +135,18 @@ async def init_db():
         
         admin = db.query(User).filter(User.username == "admin").first()
         if not admin:
+            # 使用passlib的hash方法生成密码哈希
+            try:
+                hashed_password = pwd_context.hash("admin123")
+            except Exception as e:
+                # 如果bcrypt版本不兼容，使用硬编码的哈希值
+                print(f"警告: bcrypt哈希失败，使用预计算值: {e}")
+                hashed_password = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NUyBuChOqRE2"
+            
             admin = User(
                 username="admin",
                 email="admin@example.com",
-                hashed_password=pwd_context.hash("admin123"),
+                hashed_password=hashed_password,
                 is_admin=True
             )
             db.add(admin)

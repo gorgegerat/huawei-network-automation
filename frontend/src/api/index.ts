@@ -1,13 +1,18 @@
 import apiClient from './client'
 
 export const authAPI = {
-  login: (username: string, password: string) =>
-    apiClient.post('/api/auth/login', new URLSearchParams({ username, password }), {
+  login: (username: string, password: string, captcha?: string) =>
+    apiClient.post('/api/auth/login', new URLSearchParams({ username, password, ...(captcha ? { captcha } : {}) }), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
     }),
   register: (username: string, email: string, password: string) =>
     apiClient.post('/api/auth/register', null, { params: { username, email, password } }),
   getMe: () => apiClient.get('/api/auth/me'),
+  changePassword: (oldPassword: string, newPassword: string, token: string) =>
+    apiClient.post('/api/auth/change-password', { old_password: oldPassword, new_password: newPassword }, {
+      headers: { Authorization: `Bearer ${token}` }
+    }),
+  getCaptcha: () => apiClient.get('/api/auth/captcha'),
 }
 
 export const devicesAPI = {

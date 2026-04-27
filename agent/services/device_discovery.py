@@ -3,7 +3,7 @@ import subprocess
 import re
 from typing import List, Dict, Any
 from netmiko import ConnectHandler
-from netmiko.huawei import HuaweiHuawei
+from netmiko.huawei import HuaweiSSH
 
 class DeviceDiscovery:
     """设备发现服务"""

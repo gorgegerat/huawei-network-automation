@@ -1,5 +1,5 @@
 from netmiko import ConnectHandler
-from netmiko.huawei import HuaweiHuawei
+from netmiko.huawei import HuaweiSSH
 from typing import Dict, Any, Optional
 import re
 

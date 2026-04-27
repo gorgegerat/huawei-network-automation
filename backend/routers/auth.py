@@ -12,6 +12,11 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 from services.audit_service import AuditService
 from utils.validators import Validators
+import random
+import string
+import base64
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -203,3 +208,70 @@ async def change_password(
     db.commit()
     
     return {"message": "密码修改成功"}
+
+# 验证码存储（生产环境应使用Redis）
+captcha_store = {}
+
+def generate_captcha_text(length=4):
+    """生成随机验证码"""
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=length))
+
+def create_captcha_image(text):
+    """创建验证码图片"""
+    width, height = 120, 40
+    image = Image.new('RGB', (width, height), color=(255, 255, 255))
+    draw = ImageDraw.Draw(image)
+    
+    # 添加噪点
+    for _ in range(100):
+        x = random.randint(0, width)
+        y = random.randint(0, height)
+        draw.point((x, y), fill=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)))
+    
+    # 添加干扰线
+    for _ in range(5):
+        x1 = random.randint(0, width)
+        y1 = random.randint(0, height)
+        x2 = random.randint(0, width)
+        y2 = random.randint(0, height)
+        draw.line([(x1, y1), (x2, y2)], fill=(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)), width=1)
+    
+    # 绘制文字
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
+    except:
+        font = ImageFont.load_default()
+    
+    for i, char in enumerate(text):
+        x = 20 + i * 25
+        y = random.randint(5, 15)
+        draw.text((x, y), char, fill=(random.randint(0, 100), random.randint(0, 100), random.randint(0, 100)), font=font)
+    
+    # 转换为base64
+    buffer = BytesIO()
+    image.save(buffer, format='PNG')
+    return base64.b64encode(buffer.getvalue()).decode()
+
+@router.get("/captcha")
+async def get_captcha(request: Request):
+    """获取验证码"""
+    captcha_id = ''.join(random.choices(string.ascii_letters + string.digits, k=32))
+    captcha_text = generate_captcha_text()
+    captcha_image = create_captcha_image(captcha_text)
+    
+    # 存储验证码（5分钟过期）
+    captcha_store[captcha_id] = {
+        'text': captcha_text.lower(),
+        'expires': datetime.now(timezone.utc) + timedelta(minutes=5)
+    }
+    
+    # 清理过期验证码
+    now = datetime.now(timezone.utc)
+    expired_keys = [k for k, v in captcha_store.items() if v['expires'] < now]
+    for k in expired_keys:
+        del captcha_store[k]
+    
+    return {
+        "captcha_id": captcha_id,
+        "image": captcha_image
+    }
