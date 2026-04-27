@@ -92,15 +92,6 @@ const Devices = () => {
     }
   }
 
-  const handleUpdateGroup = async (deviceId: number, group: string) => {
-    try {
-      await devicesAPI.updateGroup(deviceId, group)
-      loadDevices()
-    } catch (error) {
-      alert('更新分组失败')
-    }
-  }
-
   const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
