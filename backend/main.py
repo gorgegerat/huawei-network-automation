@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from contextlib import asynccontextmanager
 import uvicorn
+import logging
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -12,7 +13,12 @@ from routers import devices, configs, monitoring, alerts, auth, optimization, zt
 from services.notification_service import NotificationService
 from services.monitor_service import MonitorService
 from services.auto_optimization_service import AutoOptimizationService
+from services.docker_cleanup_service import DockerCleanupService
 from config_loader import config
+
+# 初始化日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # 初始化速率限制器
 limiter = Limiter(key_func=get_remote_address)
@@ -21,6 +27,7 @@ limiter = Limiter(key_func=get_remote_address)
 notification_service = NotificationService(config)
 monitor_service = MonitorService(config, notification_service)
 auto_optimization_service = AutoOptimizationService(config, notification_service)
+docker_cleanup_service = DockerCleanupService(config)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,8 +37,22 @@ async def lifespan(app: FastAPI):
     await monitor_service.start()
     # 启动自动优化服务
     await auto_optimization_service.start()
+    # 启动Docker清理服务定时任务
+    import asyncio
+    async def cleanup_task():
+        while True:
+            try:
+                await asyncio.sleep(docker_cleanup_service.schedule_hours * 3600)
+                await docker_cleanup_service.full_cleanup()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Docker清理任务失败: {e}")
+    
+    cleanup_task_handle = asyncio.create_task(cleanup_task())
     yield
     # 关闭时清理
+    cleanup_task_handle.cancel()
     await monitor_service.stop()
     await auto_optimization_service.stop()
 
@@ -73,7 +94,8 @@ async def health_check():
         "services": {
             "database": "connected",
             "monitoring": "running" if monitor_service.is_running else "stopped",
-            "auto_optimization": "running" if auto_optimization_service.is_running else "stopped"
+            "auto_optimization": "running" if auto_optimization_service.is_running else "stopped",
+            "docker_cleanup": docker_cleanup_service.get_status()
         }
     }
 

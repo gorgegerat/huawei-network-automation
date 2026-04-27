@@ -94,6 +94,13 @@ security:
   jwt_expire_hours: 24
   api_rate_limit: 100  # 每分钟请求数
 
+# Docker清理配置
+docker_cleanup:
+  enabled: true
+  schedule_hours: 24  # 清理间隔（小时）
+  keep_images: 3  # 保留最近3个镜像
+  keep_containers: 5  # 保留最近5个容器
+
 # ZTP零接触部署配置
 ztp:
   enabled: true
