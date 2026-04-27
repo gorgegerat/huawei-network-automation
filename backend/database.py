@@ -142,15 +142,10 @@ async def init_db():
         pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
         
         admin = db.query(User).filter(User.username == "admin").first()
+        # 直接使用预计算的bcrypt哈希值（密码: admin123）
+        hashed_password = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NUyBuChOqRE2"
+        
         if not admin:
-            # 使用passlib的hash方法生成密码哈希
-            try:
-                hashed_password = pwd_context.hash("admin123")
-            except Exception as e:
-                # 如果bcrypt版本不兼容，使用硬编码的哈希值
-                print(f"警告: bcrypt哈希失败，使用预计算值: {e}")
-                hashed_password = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5NUyBuChOqRE2"
-            
             admin = User(
                 username="admin",
                 email="admin@example.com",
@@ -160,6 +155,11 @@ async def init_db():
             db.add(admin)
             db.commit()
             print("默认管理员用户已创建: admin / admin123")
+        else:
+            # 更新现有admin用户的密码
+            admin.hashed_password = hashed_password
+            db.commit()
+            print("管理员用户密码已重置: admin / admin123")
     finally:
         db.close()
 
