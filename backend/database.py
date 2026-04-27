@@ -138,12 +138,11 @@ async def init_db():
     # 创建默认管理员用户
     db = SessionLocal()
     try:
-        from passlib.context import CryptContext
-        pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
+        from werkzeug.security import generate_password_hash
         
         admin = db.query(User).filter(User.username == "admin").first()
-        # 使用pbkdf2_sha256生成密码哈希（密码: admin123）
-        hashed_password = pwd_context.hash("admin123")
+        # 使用werkzeug生成密码哈希（密码: admin123）
+        hashed_password = generate_password_hash("admin123")
         
         if not admin:
             admin = User(
