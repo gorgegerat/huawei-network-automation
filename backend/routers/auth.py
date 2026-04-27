@@ -44,7 +44,11 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 def verify_password(plain_password, hashed_password):
-    return pwd_context.verify(plain_password, hashed_password)
+    try:
+        return pwd_context.verify(plain_password, hashed_password)
+    except Exception as e:
+        print(f"密码验证错误: {e}")
+        return False
 
 def get_password_hash(password):
     return pwd_context.hash(password)
