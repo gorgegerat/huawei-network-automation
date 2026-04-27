@@ -62,7 +62,7 @@ class TFTPServer:
 
         # 启动TFTP服务器
         self.server = TftpServer(self.root_dir)
-        self.server.listen(('0.0.0.0', self.listen_port))
+        self.server.listen('0.0.0.0', self.listen_port)
         self.running = True
         logger.info(f"TFTP服务器启动，监听端口 {self.listen_port}")
         logger.info(f"TFTP根目录: {self.root_dir}")
