@@ -9,7 +9,8 @@ import {
   LogOut,
   Menu,
   X,
-  Network
+  Network,
+  Lock
 } from 'lucide-react'
 import { useState } from 'react'
 
@@ -31,6 +32,7 @@ const Layout = ({ user, onLogout, children }: LayoutProps) => {
     { path: '/alerts', icon: AlertTriangle, label: '告警' },
     { path: '/optimization', icon: Zap, label: '自动优化' },
     { path: '/ztp', icon: Network, label: 'ZTP零接触部署' },
+    { path: '/change-password', icon: Lock, label: '修改密码' },
   ]
 
   return (

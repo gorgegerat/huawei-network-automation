@@ -8,6 +8,7 @@ import Monitoring from './pages/Monitoring'
 import Alerts from './pages/Alerts'
 import Optimization from './pages/Optimization'
 import ZTP from './pages/ZTP'
+import ChangePassword from './pages/ChangePassword'
 import Layout from './components/Layout'
 
 function App() {
@@ -50,6 +51,7 @@ function App() {
             <Route path="/alerts" element={<Alerts />} />
             <Route path="/optimization" element={<Optimization />} />
             <Route path="/ztp" element={<ZTP />} />
+            <Route path="/change-password" element={<ChangePassword />} />
           </Routes>
         </Layout>
       )}
