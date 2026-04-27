@@ -4,9 +4,17 @@ from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime, timezone
 from contextlib import contextmanager
 from config_loader import config
+import os
 
 # 从配置加载器获取数据库配置
 DATABASE_URL = config.get("database", {}).get("url", "sqlite:///data/network.db")
+
+# 确保数据库目录存在
+if DATABASE_URL.startswith("sqlite:///"):
+    db_path = DATABASE_URL.replace("sqlite:///", "")
+    db_dir = os.path.dirname(db_path)
+    if db_dir and not os.path.exists(db_dir):
+        os.makedirs(db_dir, exist_ok=True)
 
 # 创建数据库引擎
 engine = create_engine(DATABASE_URL, echo=config.get("database", {}).get("echo", False))
